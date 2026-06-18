@@ -415,6 +415,30 @@
     renderWrongList();
   }
 
+  function renderReadyState() {
+    stopTimer();
+    state.pool = [];
+    state.current = 0;
+    state.answers = new Map();
+    el.total.textContent = '0';
+    el.answered.textContent = '0';
+    el.accuracy.textContent = '0%';
+    el.progress.style.width = '0%';
+    el.index.textContent = '0 / 0';
+    el.unitName.textContent = '대기';
+    el.question.textContent = '새로 출제를 눌러 문제를 생성하세요.';
+    el.prev.disabled = true;
+    el.next.disabled = true;
+    el.answerO.disabled = true;
+    el.answerX.disabled = true;
+    el.result.classList.add('hidden');
+    el.resultTitle.textContent = '';
+    el.explanation.textContent = '';
+    el.jump.textContent = '';
+    renderPausedTimer(null, null);
+    renderWrongList();
+  }
+
   function wrongItems() {
     return state.pool.filter((question) => {
       return state.answers.has(question.id) && state.answers.get(question.id) !== question.answer;
@@ -620,7 +644,7 @@
       populateUnits();
       bindEvents();
       setQuizEnabled(true);
-      startQuiz();
+      renderReadyState();
     } catch (error) {
       renderLoadError(error);
     }
