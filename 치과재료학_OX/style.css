@@ -86,7 +86,7 @@ h1 {
 
 .controls {
   display: grid;
-  grid-template-columns: 140px 140px minmax(180px, 1fr) 128px;
+  grid-template-columns: 140px 140px 140px minmax(180px, 1fr) 128px;
   gap: 10px;
   margin-bottom: 14px;
   padding: 14px;
@@ -182,6 +182,49 @@ h1 {
 
 #questionUnit {
   text-align: right;
+}
+
+.timer-box {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.timer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.timer-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+#timerBar {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 120ms linear, background 120ms ease;
+}
+
+.timer-box.low #timerBar {
+  background: var(--focus);
+}
+
+.timer-box.expired #timerBar {
+  background: var(--bad);
+}
+
+.timer-box.paused #timerBar {
+  background: var(--line);
 }
 
 .question-text {
@@ -395,7 +438,7 @@ select:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 
-  .controls label:nth-child(3),
+  .controls label:nth-child(4),
   .controls button {
     grid-column: 1 / -1;
   }
@@ -425,7 +468,7 @@ select:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .controls label:nth-child(3),
+  .controls label:nth-child(4),
   .controls button {
     grid-column: auto;
   }
