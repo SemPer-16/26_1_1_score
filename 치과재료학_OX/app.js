@@ -1,5 +1,9 @@
 (function () {
-  const questions = Array.isArray(window.QUESTIONS) ? window.QUESTIONS : [];
+  const QUESTIONS_CSV = 'questions.csv';
+  const COPY_BUTTON_LABEL = '텍스트 복사';
+  let questions = [];
+  let copyStatusTimer = 0;
+
   const state = {
     pool: [],
     current: 0,
@@ -27,8 +31,118 @@
     explanation: document.getElementById('explanationText'),
     jump: document.getElementById('jumpGrid'),
     wrongCount: document.getElementById('wrongCount'),
+    copyWrong: document.getElementById('copyWrongButton'),
     wrongList: document.getElementById('wrongList'),
   };
+
+  function parseCsvRows(text) {
+    const source = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < source.length; i += 1) {
+      const char = source[i];
+
+      if (inQuotes) {
+        if (char === '"') {
+          if (source[i + 1] === '"') {
+            field += '"';
+            i += 1;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field += char;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inQuotes = true;
+        continue;
+      }
+
+      if (char === ',') {
+        row.push(field);
+        field = '';
+        continue;
+      }
+
+      if (char === '\r') {
+        if (source[i + 1] === '\n') continue;
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+        continue;
+      }
+
+      if (char === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+        continue;
+      }
+
+      field += char;
+    }
+
+    if (inQuotes) {
+      throw new Error('CSV 따옴표가 닫히지 않았습니다.');
+    }
+
+    if (field || row.length) {
+      row.push(field);
+      rows.push(row);
+    }
+
+    return rows.filter((cells) => cells.some((cell) => cell.trim()));
+  }
+
+  function parseQuestionsCsv(text) {
+    const rows = parseCsvRows(text);
+    if (rows.length < 2) return [];
+
+    const headers = rows[0].map((header) => header.trim());
+    const indexByHeader = Object.fromEntries(headers.map((header, index) => [header, index]));
+    const required = ['id', 'question', 'answer', 'explanation', 'unit'];
+    required.forEach((field) => {
+      if (!(field in indexByHeader)) {
+        throw new Error(`CSV에 ${field} 컬럼이 없습니다.`);
+      }
+    });
+
+    return rows.slice(1).map((row, index) => {
+      const id = Number.parseInt(row[indexByHeader.id], 10);
+      const answer = String(row[indexByHeader.answer] || '').trim().toUpperCase();
+      const question = row[indexByHeader.question] || '';
+      const explanation = row[indexByHeader.explanation] || '';
+      const unit = String(row[indexByHeader.unit] || '').trim();
+
+      if (!Number.isFinite(id) || !question.trim() || !['O', 'X'].includes(answer) || !unit) {
+        throw new Error(`CSV ${index + 2}행의 문항 형식이 올바르지 않습니다.`);
+      }
+
+      return {
+        id,
+        question,
+        answer,
+        explanation,
+        unit,
+      };
+    });
+  }
+
+  async function loadQuestions() {
+    const response = await fetch(QUESTIONS_CSV, { cache: 'no-cache' });
+    if (!response.ok) {
+      throw new Error(`${QUESTIONS_CSV} 응답 오류: ${response.status}`);
+    }
+    return parseQuestionsCsv(await response.text());
+  }
 
   function hashSeed(value) {
     const text = String(value || '1');
@@ -60,6 +174,7 @@
   }
 
   function clampLimit(value, max) {
+    if (max < 1) return 0;
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed)) return Math.min(60, max);
     return Math.max(1, Math.min(parsed, max));
@@ -130,7 +245,18 @@
   function render() {
     const question = currentQuestion();
     if (!question) {
+      el.total.textContent = '0';
+      el.answered.textContent = '0';
+      el.accuracy.textContent = '0%';
+      el.progress.style.width = '0%';
+      el.index.textContent = '0 / 0';
+      el.unitName.textContent = '문항 없음';
       el.question.textContent = '표시할 문항이 없습니다.';
+      el.prev.disabled = true;
+      el.next.disabled = true;
+      el.answerO.disabled = true;
+      el.answerX.disabled = true;
+      renderWrongList();
       return;
     }
 
@@ -150,6 +276,8 @@
     el.question.textContent = question.question;
     el.prev.disabled = state.current === 0;
     el.next.disabled = state.current === state.pool.length - 1;
+    el.answerO.disabled = false;
+    el.answerX.disabled = false;
 
     setAnswerButton(el.answerO, question, chosen);
     setAnswerButton(el.answerX, question, chosen);
@@ -167,6 +295,83 @@
 
     updateJumpGrid();
     renderWrongList();
+  }
+
+  function wrongItems() {
+    return state.pool.filter((question) => {
+      const chosen = state.answers.get(question.id);
+      return chosen && chosen !== question.answer;
+    });
+  }
+
+  function updateCopyButton(items) {
+    if (!el.copyWrong) return;
+    el.copyWrong.disabled = !items.length;
+    if (!items.length) {
+      el.copyWrong.textContent = COPY_BUTTON_LABEL;
+    }
+  }
+
+  function formatWrongNote(items) {
+    const lines = [`오답노트 (${items.length}개)`];
+    items.forEach((question, listIndex) => {
+      const index = state.pool.findIndex((item) => item.id === question.id);
+      lines.push(
+        '',
+        `${listIndex + 1}. ${index + 1}번 [${question.unit}]`,
+        `문제: ${question.question}`,
+        `내 답: ${state.answers.get(question.id)} / 정답: ${question.answer}`,
+        `해설: ${question.explanation}`
+      );
+    });
+    return lines.join('\n');
+  }
+
+  async function writeClipboardText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-1000px';
+    textarea.style.left = '-1000px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+      if (!document.execCommand('copy')) {
+        throw new Error('복사 명령을 실행하지 못했습니다.');
+      }
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+
+  async function copyWrongNote() {
+    const items = wrongItems();
+    if (!items.length || !el.copyWrong) return;
+
+    el.copyWrong.disabled = true;
+    window.clearTimeout(copyStatusTimer);
+
+    try {
+      await writeClipboardText(formatWrongNote(items));
+      el.copyWrong.textContent = '복사됨';
+    } catch (error) {
+      el.copyWrong.textContent = '복사 실패';
+      console.error(error);
+    }
+
+    el.copyWrong.disabled = !wrongItems().length;
+    copyStatusTimer = window.setTimeout(() => {
+      el.copyWrong.textContent = COPY_BUTTON_LABEL;
+      updateCopyButton(wrongItems());
+    }, 1400);
   }
 
   function renderJumpGrid() {
@@ -195,14 +400,12 @@
   }
 
   function renderWrongList() {
-    const wrongItems = state.pool.filter((question) => {
-      const chosen = state.answers.get(question.id);
-      return chosen && chosen !== question.answer;
-    });
-    el.wrongCount.textContent = `${wrongItems.length}개`;
+    const items = wrongItems();
+    el.wrongCount.textContent = `${items.length}개`;
+    updateCopyButton(items);
     el.wrongList.textContent = '';
 
-    if (!wrongItems.length) {
+    if (!items.length) {
       const empty = document.createElement('p');
       empty.className = 'wrong-empty';
       empty.textContent = '아직 오답이 없습니다.';
@@ -210,7 +413,7 @@
       return;
     }
 
-    wrongItems.forEach((question) => {
+    items.forEach((question) => {
       const index = state.pool.findIndex((item) => item.id === question.id);
       const item = document.createElement('article');
       item.className = 'wrong-item';
@@ -241,17 +444,56 @@
     el.next.addEventListener('click', () => move(1));
     el.answerO.addEventListener('click', () => answerCurrent('O'));
     el.answerX.addEventListener('click', () => answerCurrent('X'));
+    el.copyWrong.addEventListener('click', copyWrongNote);
     el.unit.addEventListener('change', startQuiz);
     document.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
-      if (event.key.toLowerCase() === 'o') answerCurrent('O');
-      if (event.key.toLowerCase() === 'x') answerCurrent('X');
+      const key = event.key.toLowerCase();
+      if (key === 'z' || key === 'o') answerCurrent('O');
+      if (key === 'x') answerCurrent('X');
       if (event.key === 'ArrowLeft') move(-1);
       if (event.key === 'ArrowRight') move(1);
     });
   }
 
-  populateUnits();
-  bindEvents();
-  startQuiz();
+  function setQuizEnabled(enabled) {
+    [el.seed, el.limit, el.unit, el.start, el.answerO, el.answerX, el.prev, el.next].forEach((control) => {
+      control.disabled = !enabled;
+    });
+    if (el.copyWrong) el.copyWrong.disabled = true;
+  }
+
+  function renderLoadError(error) {
+    console.error(error);
+    el.total.textContent = '0';
+    el.answered.textContent = '0';
+    el.accuracy.textContent = '0%';
+    el.progress.style.width = '0%';
+    el.index.textContent = '0 / 0';
+    el.unitName.textContent = '로딩 오류';
+    el.question.textContent = '문항 CSV를 불러오지 못했습니다.';
+    el.result.classList.remove('hidden');
+    el.resultTitle.className = 'result-title bad';
+    el.resultTitle.textContent = '문항 로딩 실패';
+    el.explanation.textContent = '로컬 파일로 직접 열었다면 HTTP 서버로 실행해 주세요.';
+    el.wrongList.textContent = '';
+    renderWrongList();
+  }
+
+  async function init() {
+    setQuizEnabled(false);
+    el.question.textContent = '문항을 불러오는 중입니다.';
+
+    try {
+      questions = await loadQuestions();
+      populateUnits();
+      bindEvents();
+      setQuizEnabled(true);
+      startQuiz();
+    } catch (error) {
+      renderLoadError(error);
+    }
+  }
+
+  init();
 }());

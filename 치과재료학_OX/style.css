@@ -319,6 +319,28 @@ h1 {
   font-weight: 800;
 }
 
+.section-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.section-actions button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: 7px 10px;
+  color: var(--accent-strong);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.section-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .wrong-list {
   display: grid;
   gap: 10px;
@@ -422,5 +444,14 @@ select:focus-visible {
 
   #questionUnit {
     text-align: left;
+  }
+
+  .section-head {
+    align-items: flex-start;
+  }
+
+  .section-actions {
+    align-items: flex-end;
+    flex-direction: column-reverse;
   }
 }

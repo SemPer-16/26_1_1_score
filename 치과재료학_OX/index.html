@@ -68,13 +68,15 @@
     <section class="wrong-panel">
       <div class="section-head">
         <h2>오답노트</h2>
-        <span id="wrongCount">0개</span>
+        <div class="section-actions">
+          <button id="copyWrongButton" type="button" disabled>텍스트 복사</button>
+          <span id="wrongCount">0개</span>
+        </div>
       </div>
       <div id="wrongList" class="wrong-list"></div>
     </section>
   </main>
 
-  <script src="questions.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
