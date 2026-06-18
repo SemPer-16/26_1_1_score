@@ -29,6 +29,10 @@
         <input id="limitInput" type="number" min="1" max="10000" value="60" inputmode="numeric">
       </label>
       <label>
+        <span>제한 시간(초)</span>
+        <input id="timeLimitInput" type="number" min="1" max="300" value="10" inputmode="numeric">
+      </label>
+      <label>
         <span>단원</span>
         <select id="unitSelect">
           <option value="all">전체 단원</option>
@@ -49,6 +53,15 @@
       <div class="question-meta">
         <span id="questionIndex">1 / 60</span>
         <span id="questionUnit">단원</span>
+      </div>
+      <div id="timerBox" class="timer-box paused" aria-label="문항 제한 시간">
+        <div class="timer-head">
+          <span id="timerLabel">남은 시간 10초</span>
+          <span id="timerStatus">대기</span>
+        </div>
+        <div class="timer-track">
+          <div id="timerBar"></div>
+        </div>
       </div>
       <p id="questionText" class="question-text"></p>
       <div class="answer-buttons" role="group" aria-label="정답 선택">

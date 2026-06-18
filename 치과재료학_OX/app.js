@@ -1,18 +1,25 @@
 (function () {
   const QUESTIONS_CSV = 'questions.csv';
   const COPY_BUTTON_LABEL = '텍스트 복사';
+  const DEFAULT_TIME_LIMIT = 10;
+  const TIMEOUT_ANSWER = 'TIMEOUT';
   let questions = [];
   let copyStatusTimer = 0;
+  let timerId = 0;
+  let timerQuestionId = null;
+  let timerDeadline = 0;
 
   const state = {
     pool: [],
     current: 0,
     answers: new Map(),
+    timeLimit: DEFAULT_TIME_LIMIT,
   };
 
   const el = {
     seed: document.getElementById('seedInput'),
     limit: document.getElementById('limitInput'),
+    timeLimit: document.getElementById('timeLimitInput'),
     unit: document.getElementById('unitSelect'),
     start: document.getElementById('startButton'),
     prev: document.getElementById('prevButton'),
@@ -23,6 +30,10 @@
     progress: document.getElementById('progressBar'),
     index: document.getElementById('questionIndex'),
     unitName: document.getElementById('questionUnit'),
+    timerBox: document.getElementById('timerBox'),
+    timerLabel: document.getElementById('timerLabel'),
+    timerStatus: document.getElementById('timerStatus'),
+    timerBar: document.getElementById('timerBar'),
     question: document.getElementById('questionText'),
     answerO: document.getElementById('answerO'),
     answerX: document.getElementById('answerX'),
@@ -180,6 +191,16 @@
     return Math.max(1, Math.min(parsed, max));
   }
 
+  function clampTimeLimit(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return DEFAULT_TIME_LIMIT;
+    return Math.max(1, Math.min(parsed, 300));
+  }
+
+  function formatAnswerValue(value) {
+    return value === TIMEOUT_ANSWER ? '시간 초과' : value;
+  }
+
   function populateUnits() {
     const units = Array.from(new Set(questions.map((item) => item.unit))).sort((a, b) => a.localeCompare(b, 'ko'));
     units.forEach((unit) => {
@@ -191,15 +212,105 @@
   }
 
   function startQuiz() {
+    stopTimer();
     const selectedUnit = el.unit.value;
     const base = selectedUnit === 'all' ? questions : questions.filter((item) => item.unit === selectedUnit);
     const limit = clampLimit(el.limit.value, base.length);
+    state.timeLimit = clampTimeLimit(el.timeLimit.value);
     el.limit.value = limit;
     el.limit.max = base.length;
+    el.timeLimit.value = state.timeLimit;
     state.pool = shuffled(base, el.seed.value).slice(0, limit);
     state.current = 0;
     state.answers = new Map();
     renderJumpGrid();
+    render();
+  }
+
+  function stopTimer() {
+    window.clearInterval(timerId);
+    timerId = 0;
+    timerQuestionId = null;
+    timerDeadline = 0;
+  }
+
+  function setTimerMode(mode) {
+    el.timerBox.classList.remove('low', 'expired', 'paused');
+    if (mode) el.timerBox.classList.add(mode);
+  }
+
+  function setTimerBar(percent) {
+    el.timerBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  }
+
+  function renderTimerRemaining() {
+    const remaining = Math.max(0, timerDeadline - Date.now());
+    const duration = state.timeLimit * 1000;
+    const percent = duration ? (remaining / duration) * 100 : 0;
+
+    el.timerLabel.textContent = `남은 시간 ${Math.ceil(remaining / 1000)}초`;
+    el.timerStatus.textContent = `${state.timeLimit}초 제한`;
+    setTimerBar(percent);
+    setTimerMode(percent <= 30 ? 'low' : '');
+
+    if (remaining <= 0 && timerQuestionId) {
+      const expiredQuestionId = timerQuestionId;
+      stopTimer();
+      timeoutQuestion(expiredQuestionId);
+    }
+  }
+
+  function startTimer(question) {
+    stopTimer();
+    timerQuestionId = question.id;
+    timerDeadline = Date.now() + (state.timeLimit * 1000);
+    renderTimerRemaining();
+    timerId = window.setInterval(renderTimerRemaining, 100);
+  }
+
+  function renderPausedTimer(question, chosen) {
+    stopTimer();
+
+    if (!question) {
+      el.timerLabel.textContent = `남은 시간 ${state.timeLimit}초`;
+      el.timerStatus.textContent = '대기';
+      setTimerBar(0);
+      setTimerMode('paused');
+      return;
+    }
+
+    if (chosen === TIMEOUT_ANSWER) {
+      el.timerLabel.textContent = '시간 초과';
+      el.timerStatus.textContent = '오답 처리';
+      setTimerBar(0);
+      setTimerMode('expired');
+      return;
+    }
+
+    el.timerLabel.textContent = '답변 완료';
+    el.timerStatus.textContent = '정지';
+    setTimerBar(100);
+    setTimerMode('paused');
+  }
+
+  function syncTimer(question, chosen) {
+    if (!question || state.answers.has(question.id)) {
+      renderPausedTimer(question, chosen);
+      return;
+    }
+
+    if (timerQuestionId === question.id && timerId) {
+      renderTimerRemaining();
+      return;
+    }
+
+    startTimer(question);
+  }
+
+  function timeoutQuestion(questionId) {
+    const question = currentQuestion();
+    if (!question || question.id !== questionId || state.answers.has(questionId)) return;
+    state.answers.set(questionId, TIMEOUT_ANSWER);
     render();
   }
 
@@ -236,7 +347,7 @@
   function setAnswerButton(button, question, chosen) {
     const value = button.dataset.answer;
     button.classList.remove('selected', 'correct', 'incorrect');
-    if (!chosen) return;
+    if (!state.answers.has(question.id)) return;
     if (value === chosen) button.classList.add('selected');
     if (value === question.answer) button.classList.add('correct');
     if (value === chosen && chosen !== question.answer) button.classList.add('incorrect');
@@ -245,6 +356,7 @@
   function render() {
     const question = currentQuestion();
     if (!question) {
+      stopTimer();
       el.total.textContent = '0';
       el.answered.textContent = '0';
       el.accuracy.textContent = '0%';
@@ -256,6 +368,7 @@
       el.next.disabled = true;
       el.answerO.disabled = true;
       el.answerX.disabled = true;
+      renderPausedTimer(null, null);
       renderWrongList();
       return;
     }
@@ -281,11 +394,16 @@
 
     setAnswerButton(el.answerO, question, chosen);
     setAnswerButton(el.answerX, question, chosen);
+    syncTimer(question, chosen);
 
-    if (chosen) {
+    if (state.answers.has(question.id)) {
       el.result.classList.remove('hidden');
       el.resultTitle.className = `result-title ${result ? 'ok' : 'bad'}`;
-      el.resultTitle.textContent = result ? `정답입니다. 정답: ${question.answer}` : `오답입니다. 정답: ${question.answer}`;
+      if (chosen === TIMEOUT_ANSWER) {
+        el.resultTitle.textContent = `시간 초과입니다. 정답: ${question.answer}`;
+      } else {
+        el.resultTitle.textContent = result ? `정답입니다. 정답: ${question.answer}` : `오답입니다. 정답: ${question.answer}`;
+      }
       el.explanation.textContent = question.explanation;
     } else {
       el.result.classList.add('hidden');
@@ -299,8 +417,7 @@
 
   function wrongItems() {
     return state.pool.filter((question) => {
-      const chosen = state.answers.get(question.id);
-      return chosen && chosen !== question.answer;
+      return state.answers.has(question.id) && state.answers.get(question.id) !== question.answer;
     });
   }
 
@@ -320,7 +437,7 @@
         '',
         `${listIndex + 1}. ${index + 1}번 [${question.unit}]`,
         `문제: ${question.question}`,
-        `내 답: ${state.answers.get(question.id)} / 정답: ${question.answer}`,
+        `내 답: ${formatAnswerValue(state.answers.get(question.id))} / 정답: ${question.answer}`,
         `해설: ${question.explanation}`
       );
     });
@@ -394,8 +511,8 @@
       const chosen = state.answers.get(question.id);
       button.className = '';
       if (index === state.current) button.classList.add('current');
-      if (chosen) button.classList.add('done');
-      if (chosen && chosen !== question.answer) button.classList.add('wrong');
+      if (state.answers.has(question.id)) button.classList.add('done');
+      if (state.answers.has(question.id) && chosen !== question.answer) button.classList.add('wrong');
     });
   }
 
@@ -431,7 +548,7 @@
       title.textContent = question.question;
 
       const detail = document.createElement('p');
-      detail.textContent = `내 답: ${state.answers.get(question.id)} / 정답: ${question.answer}`;
+      detail.textContent = `내 답: ${formatAnswerValue(state.answers.get(question.id))} / 정답: ${question.answer}`;
 
       item.append(moveButton, title, detail);
       el.wrongList.appendChild(item);
@@ -449,21 +566,34 @@
     document.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
       const key = event.key.toLowerCase();
-      if (key === 'z' || key === 'o') answerCurrent('O');
-      if (key === 'x') answerCurrent('X');
-      if (event.key === 'ArrowLeft') move(-1);
-      if (event.key === 'ArrowRight') move(1);
+      if (key === 'z' || key === 'o') {
+        event.preventDefault();
+        answerCurrent('O');
+      }
+      if (key === 'x') {
+        event.preventDefault();
+        answerCurrent('X');
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        move(-1);
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        move(1);
+      }
     });
   }
 
   function setQuizEnabled(enabled) {
-    [el.seed, el.limit, el.unit, el.start, el.answerO, el.answerX, el.prev, el.next].forEach((control) => {
+    [el.seed, el.limit, el.timeLimit, el.unit, el.start, el.answerO, el.answerX, el.prev, el.next].forEach((control) => {
       control.disabled = !enabled;
     });
     if (el.copyWrong) el.copyWrong.disabled = true;
   }
 
   function renderLoadError(error) {
+    stopTimer();
     console.error(error);
     el.total.textContent = '0';
     el.answered.textContent = '0';
@@ -477,6 +607,7 @@
     el.resultTitle.textContent = '문항 로딩 실패';
     el.explanation.textContent = '로컬 파일로 직접 열었다면 HTTP 서버로 실행해 주세요.';
     el.wrongList.textContent = '';
+    renderPausedTimer(null, null);
     renderWrongList();
   }
 
