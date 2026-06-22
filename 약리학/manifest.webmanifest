@@ -1,0 +1,18 @@
+{
+  "name": "약리학 성적",
+  "short_name": "약리학 성적",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fbfd",
+  "theme_color": "#203548",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

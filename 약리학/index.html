@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#203548">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="약리학 성적">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon.svg">
+  <title>약리학 성적 모바일</title>
+  <style>
+    :root {
+      --primary: #203548;
+      --accent: #2f88cf;
+      --accent-soft: #e8f4fd;
+      --danger: #de5c4b;
+      --success: #2d9d67;
+      --surface: #ffffff;
+      --surface-soft: #f6f9fb;
+      --muted: #667786;
+      --line: #dde6ed;
+      --shadow: 0 14px 34px rgba(32, 53, 72, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: var(--primary);
+      background:
+        radial-gradient(circle at top, rgba(47, 136, 207, 0.16), transparent 26%),
+        linear-gradient(180deg, #f8fbfd 0%, #eef4f7 45%, #f9fbfc 100%);
+      min-height: 100vh;
+    }
+
+    .app {
+      width: min(100%, 520px);
+      margin: 0 auto;
+      padding: 12px 12px 32px;
+    }
+
+    .hero {
+      padding-top: max(12px, env(safe-area-inset-top));
+      margin-bottom: 12px;
+    }
+
+    .hero-card {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-title {
+      margin: 0 0 12px;
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .search-wrap {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .search-suggestions {
+      margin-top: 10px;
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .search-suggestions.visible {
+      display: flex;
+    }
+
+    .suggestion-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .search {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 15px 16px;
+      font-size: 1rem;
+      color: var(--primary);
+      background: #fff;
+      outline: none;
+    }
+
+    .search:focus {
+      box-shadow: 0 0 0 3px rgba(47, 136, 207, 0.24);
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 15px 16px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .action-btn {
+      background: #fff;
+      color: var(--primary);
+      min-width: 72px;
+    }
+
+    .chips {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .chips::-webkit-scrollbar { display: none; }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      padding: 9px 12px;
+      font-size: 0.84rem;
+      white-space: nowrap;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid rgba(221, 230, 237, 0.84);
+      border-radius: 20px;
+      box-shadow: 0 10px 26px rgba(32, 53, 72, 0.08);
+    }
+
+    .status {
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .status-title {
+      margin: 0 0 4px;
+      font-size: 0.96rem;
+      font-weight: 800;
+    }
+
+    .status-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.9rem;
+    }
+
+    .match-list {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .match-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.84rem;
+      border: 1px solid #cfe5f7;
+    }
+
+    .report {
+      display: none;
+      padding: 16px;
+    }
+
+    .report.visible { display: block; }
+
+    .identity {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .id-label {
+      margin: 0;
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .sub-line {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .rank-pill {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid #cfe5f7;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 1.04rem;
+      font-weight: 800;
+    }
+
+    .hero-score {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fafdff, #f3f8fb);
+      border: 1px solid var(--line);
+    }
+
+    .hero-score-label {
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .hero-score-value {
+      margin: 4px 0 0;
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .compare-row {
+      margin-top: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .compare-item {
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .track {
+      height: 12px;
+      border-radius: 999px;
+      background: #dbe6ee;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--danger), #ffa071);
+    }
+
+    .fill.avg {
+      background: linear-gradient(90deg, var(--accent), #82c6ff);
+    }
+
+    .fill.max {
+      background: linear-gradient(90deg, var(--success), #8ad6a6);
+    }
+
+    .metric-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .metric {
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .metric-value {
+      margin-top: 5px;
+      font-weight: 800;
+      font-size: 1.02rem;
+    }
+
+    .section {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    .summary-table td {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .summary-table tr:last-child td { border-bottom: 0; }
+
+    .summary-table td:last-child {
+      text-align: right;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .highlight-row td:last-child {
+      color: var(--danger);
+    }
+
+    .chart-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .dot-point {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="hero">
+      <div class="hero-card">
+        <h1 class="hero-title">약리학 성적</h1>
+        <div class="search-wrap">
+          <input id="searchInput" class="search" type="text" placeholder="비밀번호 입력..." inputmode="numeric" autocomplete="off">
+          <button id="showBtn" class="action-btn" type="button">조회</button>
+        </div>
+        <div class="search-suggestions" id="searchSuggestions"></div>
+        <div class="chips">
+          <button class="chip" type="button" data-sample="318">상위권</button>
+          <button class="chip" type="button" data-sample="307">중앙권</button>
+          <button class="chip" type="button" data-sample="2632">하위권</button>
+          <button class="chip" id="resetBtn" type="button">초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="panel status">
+      <h2 class="status-title" id="statusTitle">비밀번호를 입력하세요</h2>
+      <p class="status-copy" id="statusCopy">일치하는 표본이 있으면 아래 모바일 리포트가 바로 갱신됩니다.</p>
+      <div class="match-list" id="matchList"></div>
+    </section>
+
+    <section class="panel report" id="reportCard">
+      <div class="identity">
+        <div>
+          <h2 class="id-label" id="studentName">-</h2>
+          <p class="sub-line" id="studentSub">-</p>
+        </div>
+        <div class="rank-pill" id="rankBadge">-</div>
+      </div>
+
+      <div class="hero-score">
+        <div class="hero-score-label">약리학 점수</div>
+        <div class="hero-score-value" id="heroScoreValue">0.00</div>
+
+        <div class="compare-row">
+          <div class="compare-item">
+            <span>내 점수</span>
+            <div class="track"><div class="fill" id="scoreFill"></div></div>
+            <strong id="scoreValue">0</strong>
+          </div>
+          <div class="compare-item">
+            <span>평균</span>
+            <div class="track"><div class="fill avg" id="avgFill"></div></div>
+            <strong id="avgValue">0</strong>
+          </div>
+          <div class="compare-item">
+            <span>최고점</span>
+            <div class="track"><div class="fill max" id="maxFill"></div></div>
+            <strong id="maxValue">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="metric-label">상위 비율</div>
+          <div class="metric-value" id="topPercentValue">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">표준점수</div>
+          <div class="metric-value" id="standardScoreValue">-</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">요약</h3>
+        <table class="summary-table">
+          <tbody id="statsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="chart-panel">
+        <h3 class="section-title">점수 분포</h3>
+        <svg id="histogramChart" viewBox="0 0 340 220" aria-label="히스토그램"></svg>
+      </div>
+
+      <div class="chart-panel">
+        <h3 class="section-title">표본 위치</h3>
+        <svg id="dotChart" viewBox="0 0 340 240" aria-label="표본 위치"></svg>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const students = [{"id":"318","score":21},{"id":"308","score":17},{"id":"823","score":16},{"id":"924","score":16},{"id":"1024","score":15},{"id":"1030","score":15},{"id":"211","score":14},{"id":"2763","score":14},{"id":"1428","score":14},{"id":"6556","score":14},{"id":"2922","score":14},{"id":"9715","score":13},{"id":"3867","score":13},{"id":"2026","score":13},{"id":"7107","score":13},{"id":"914","score":13},{"id":"7462","score":13},{"id":"0615 (학번끝1)","score":13},{"id":"610","score":13},{"id":"4973","score":13},{"id":"8355","score":12},{"id":"3724","score":12},{"id":"1007","score":11},{"id":"9990","score":11},{"id":"201","score":11},{"id":"414","score":11},{"id":"522","score":11},{"id":"720","score":11},{"id":"1991","score":11},{"id":"8078","score":11},{"id":"5926","score":11},{"id":"8486","score":10},{"id":"919","score":10},{"id":"226","score":10},{"id":"9302","score":10},{"id":"915","score":10},{"id":"3035","score":10},{"id":"4815","score":10},{"id":"0615(학번끝9)","score":10},{"id":"4086","score":10},{"id":"607","score":10},{"id":"307","score":9},{"id":"3024","score":9},{"id":"2629","score":9},{"id":"5253","score":9},{"id":"6195","score":9},{"id":"8091","score":9},{"id":"809","score":9},{"id":"9626","score":9},{"id":"3017","score":9},{"id":"3379","score":9},{"id":"6459","score":9},{"id":"502","score":8},{"id":"2671","score":8},{"id":"1729","score":8},{"id":"3253","score":8},{"id":"2928","score":8},{"id":"8275","score":7},{"id":"1351","score":7},{"id":"4523","score":7},{"id":"5764","score":7},{"id":"2004","score":7},{"id":"7859","score":7},{"id":"1740","score":7},{"id":"6740","score":7},{"id":"1399","score":7},{"id":"4339","score":6},{"id":"116","score":6},{"id":"1211","score":6},{"id":"7356","score":6},{"id":"338","score":6},{"id":"423","score":6},{"id":"4634","score":6},{"id":"4200","score":6},{"id":"7244","score":6},{"id":"1429","score":5},{"id":"1429","score":5},{"id":"8371","score":5},{"id":"5160","score":5},{"id":"2929","score":5},{"id":"8840","score":5},{"id":"4278","score":4},{"id":"2077","score":4},{"id":"1300","score":4},{"id":"510","score":3},{"id":"9262","score":3},{"id":"2947","score":3},{"id":"2632","score":2},{"id":"1216","score":2}];
+    const scores = students.map(student => student.score);
+    const count = scores.length;
+    const mean = scores.reduce((sum, value) => sum + value, 0) / count;
+    const sortedScores = [...scores].sort((a, b) => a - b);
+    const median = count % 2 === 0
+      ? (sortedScores[count / 2 - 1] + sortedScores[count / 2]) / 2
+      : sortedScores[Math.floor(count / 2)];
+    const variance = scores.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / (count - 1);
+    const std = Math.sqrt(variance);
+    const minScore = Math.min(...scores);
+    const topScore = Math.max(...scores);
+    const scaleMax = Math.ceil(topScore / 5) * 5;
+
+    const searchInput = document.getElementById("searchInput");
+    const searchSuggestions = document.getElementById("searchSuggestions");
+    const showBtn = document.getElementById("showBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const reportCard = document.getElementById("reportCard");
+    const dotChartSvg = document.getElementById("dotChart");
+    const statusTitle = document.getElementById("statusTitle");
+    const statusCopy = document.getElementById("statusCopy");
+    const matchList = document.getElementById("matchList");
+
+    function formatNumber(value) {
+      return Number.isInteger(value) ? String(value) : value.toFixed(2);
+    }
+
+    function computeRank(score) {
+      const higher = scores.filter(value => value > score).length;
+      const tied = scores.filter(value => value === score).length;
+      return { rank: higher + 1, tied, total: count };
+    }
+
+    function topPercentFromRank(rank) {
+      return (rank / count) * 100;
+    }
+
+    function setStatus(title, copy, matches = []) {
+      statusTitle.textContent = title;
+      statusCopy.textContent = copy;
+      matchList.innerHTML = "";
+      matches.forEach(id => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "match-btn";
+        button.textContent = id;
+        button.addEventListener("click", () => {
+          searchInput.value = id;
+          renderStudentByQuery(id);
+        });
+        matchList.appendChild(button);
+      });
+    }
+
+    function findMatches(query) {
+      const normalized = query.trim();
+      if (!normalized) return [];
+      return students
+        .filter(student => student.id.includes(normalized))
+        .map(student => student.id)
+        .slice(0, 12);
+    }
+
+    function renderSearchSuggestions(matches) {
+      searchSuggestions.innerHTML = "";
+      if (!matches.length) {
+        searchSuggestions.classList.remove("visible");
+        return;
+      }
+
+      matches.slice(0, 5).forEach(id => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "suggestion-btn";
+        button.textContent = id;
+        button.addEventListener("click", () => {
+          searchInput.value = id;
+          renderStudentByQuery(id);
+        });
+        searchSuggestions.appendChild(button);
+      });
+
+      searchSuggestions.classList.add("visible");
+    }
+
+    function renderStatsTable(student) {
+      const statsBody = document.getElementById("statsBody");
+      const { rank, tied, total } = computeRank(student.score);
+      const topPercent = topPercentFromRank(rank);
+      const zScore = std > 0 ? (student.score - mean) / std : 0;
+      const standardScore = Math.round(100 + 20 * zScore);
+
+      const rows = [
+        ["순위", `${rank}위${tied > 1 ? ` (공동 ${tied}명)` : ""}`],
+        ["상위 비율", `${topPercent.toFixed(1)}%`],
+        ["평균", `${mean.toFixed(2)}점`],
+        ["중앙값", `${median.toFixed(2)}점`],
+        ["표준편차", `${std.toFixed(2)}`],
+        ["최고 / 최저", `${formatNumber(topScore)} / ${formatNumber(minScore)}`]
+      ];
+
+      statsBody.innerHTML = "";
+      rows.forEach(([label, value], index) => {
+        const tr = document.createElement("tr");
+        if (index === 0 || index === 1) tr.className = "highlight-row";
+        tr.innerHTML = `<td>${label}</td><td>${value}</td>`;
+        statsBody.appendChild(tr);
+      });
+
+      document.getElementById("studentName").textContent = student.id;
+      document.getElementById("studentSub").textContent = `${total}명 중 ${student.score >= mean ? "평균 이상" : "평균 미만"}`;
+      document.getElementById("rankBadge").textContent = `${rank}위`;
+      document.getElementById("heroScoreValue").textContent = `${formatNumber(student.score)}점`;
+      document.getElementById("topPercentValue").textContent = `${topPercent.toFixed(1)}%`;
+      document.getElementById("standardScoreValue").textContent = `${standardScore}점`;
+
+      document.getElementById("scoreFill").style.width = `${(student.score / scaleMax) * 100}%`;
+      document.getElementById("avgFill").style.width = `${(mean / scaleMax) * 100}%`;
+      document.getElementById("maxFill").style.width = `${(topScore / scaleMax) * 100}%`;
+      document.getElementById("scoreValue").textContent = `${formatNumber(student.score)}점`;
+      document.getElementById("avgValue").textContent = `${mean.toFixed(2)}점`;
+      document.getElementById("maxValue").textContent = `${formatNumber(topScore)}점`;
+
+      return { rank, topPercent };
+    }
+
+    function svgText(x, y, text, options = "") {
+      return `<text x="${x}" y="${y}" ${options}>${text}</text>`;
+    }
+
+    function renderHistogram(student) {
+      const svg = document.getElementById("histogramChart");
+      const width = 340;
+      const height = 220;
+      const margin = { top: 16, right: 12, bottom: 34, left: 28 };
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+      const bins = 8;
+      const step = (scaleMax - minScore) / bins;
+      const counts = new Array(bins).fill(0);
+
+      scores.forEach(score => {
+        const rawIndex = Math.floor((score - minScore) / step);
+        const index = Math.max(0, Math.min(bins - 1, rawIndex));
+        counts[index] += 1;
+      });
+
+      const maxCount = Math.max(...counts);
+      const barWidth = chartWidth / bins;
+      const scoreX = margin.left + ((student.score - minScore) / (scaleMax - minScore)) * chartWidth;
+
+      let content = "";
+      for (let i = 0; i <= 4; i += 1) {
+        const y = margin.top + (chartHeight / 4) * i;
+        content += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e6eef4" stroke-width="1" />`;
+      }
+
+      counts.forEach((countValue, index) => {
+        const barHeight = maxCount === 0 ? 0 : (countValue / maxCount) * (chartHeight - 10);
+        const x = margin.left + index * barWidth + 3;
+        const y = margin.top + chartHeight - barHeight;
+        const leftScore = minScore + index * step;
+        const rightScore = leftScore + step;
+        const highlighted = student.score >= leftScore && (student.score < rightScore || index === bins - 1);
+        content += `<rect x="${x}" y="${y}" width="${barWidth - 6}" height="${barHeight}" rx="6" fill="${highlighted ? "#de5c4b" : "#5dade2"}" opacity="${highlighted ? "0.98" : "0.82"}" />`;
+      });
+
+      content += `<line x1="${scoreX}" y1="${margin.top - 2}" x2="${scoreX}" y2="${margin.top + chartHeight}" stroke="#c0392b" stroke-width="3" stroke-dasharray="6 6" />`;
+      content += svgText(scoreX, margin.top - 6, formatNumber(student.score), 'text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b"');
+      content += svgText(width - margin.right, height - 14, "점수", 'text-anchor="end" font-size="10" fill="#667786"');
+
+      svg.innerHTML = content;
+    }
+
+    function renderDotChart(student) {
+      const svg = dotChartSvg;
+      const width = 340;
+      const height = 240;
+      const margin = { top: 16, right: 18, bottom: 34, left: 48 };
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+      const numericIds = students.map((entry, index) => {
+        const parsed = Number(entry.id);
+        return Number.isFinite(parsed) ? parsed : index;
+      });
+      const minId = Math.min(...numericIds);
+      const maxId = Math.max(...numericIds);
+
+      const yForScore = score => {
+        const ratio = (score - minScore) / (topScore - minScore || 1);
+        return margin.top + chartHeight - ratio * chartHeight;
+      };
+
+      const xForId = id => {
+        const parsed = Number(id);
+        const safeId = Number.isFinite(parsed) ? parsed : minId;
+        const ratio = (safeId - minId) / (maxId - minId || 1);
+        return margin.left + ratio * chartWidth;
+      };
+
+      let content = `<line x1="${margin.left}" y1="${height - margin.bottom}" x2="${width - margin.right}" y2="${height - margin.bottom}" stroke="#d7e0e7" stroke-width="2" />`;
+
+      for (let score = Math.floor(minScore / 5) * 5; score <= Math.ceil(topScore / 5) * 5; score += 5) {
+        const y = yForScore(Math.max(minScore, Math.min(topScore, score)));
+        content += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#edf2f6" stroke-width="1" />`;
+        content += svgText(10, y + 4, `${score}`, 'font-size="10" fill="#667786"');
+      }
+
+      const xTicks = [minId, minId + (maxId - minId) / 3, minId + ((maxId - minId) * 2) / 3, maxId];
+      xTicks.forEach(value => {
+        const x = xForId(value);
+        content += `<line x1="${x}" y1="${margin.top}" x2="${x}" y2="${height - margin.bottom}" stroke="#f1f5f8" stroke-width="1" />`;
+        content += svgText(x, height - 10, `${Math.round(value)}`, 'text-anchor="middle" font-size="9" fill="#667786"');
+      });
+
+      students.forEach((entry, index) => {
+        const baseX = xForId(entry.id);
+        const y = yForScore(entry.score);
+        const jitter = ((index % 3) - 1) * 4;
+        const x = Math.max(margin.left + 4, Math.min(width - margin.right - 4, baseX + jitter));
+        const isTarget = entry.id === student.id;
+        content += `<circle class="dot-point" data-student="${entry.id}" cx="${x}" cy="${y}" r="${isTarget ? 8 : 5.2}" fill="${isTarget ? "#de5c4b" : "#85c1e9"}" stroke="${isTarget ? "#ffffff" : "transparent"}" stroke-width="2"><title>${entry.id} (${formatNumber(entry.score)}점)</title></circle>`;
+      });
+
+      const studentX = xForId(student.id);
+      content += `<line x1="${studentX}" y1="${margin.top}" x2="${studentX}" y2="${height - margin.bottom}" stroke="#de5c4b" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.55" />`;
+
+      const meanY = yForScore(mean);
+      content += `<line x1="${margin.left}" y1="${meanY}" x2="${width - margin.right}" y2="${meanY}" stroke="#203548" stroke-width="2" stroke-dasharray="5 5" />`;
+      content += svgText(width - 8, meanY - 5, `평균 ${mean.toFixed(2)}`, 'text-anchor="end" font-size="10" fill="#203548" font-weight="700"');
+      content += svgText(width - 8, margin.top + 10, `비밀번호`, 'text-anchor="end" font-size="10" fill="#667786"');
+      svg.innerHTML = content;
+    }
+
+    function renderStudent(student) {
+      const { rank, topPercent } = renderStatsTable(student);
+      renderHistogram(student);
+      renderDotChart(student);
+      reportCard.classList.add("visible");
+      setStatus(
+        `${student.id} 리포트가 표시되었습니다`,
+        `${formatNumber(student.score)}점, ${count}명 중 ${rank}위, 상위 ${topPercent.toFixed(1)}%입니다.`
+      );
+    }
+
+    function renderStudentByQuery(query) {
+      const exact = students.find(student => student.id === query.trim());
+      if (exact) {
+        renderSearchSuggestions([]);
+        renderStudent(exact);
+        return;
+      }
+
+      const matches = findMatches(query);
+      reportCard.classList.remove("visible");
+
+      if (!query.trim()) {
+        renderSearchSuggestions([]);
+        setStatus("비밀번호를 입력하세요", "일치하는 표본이 있으면 아래 모바일 리포트가 바로 갱신됩니다.");
+        return;
+      }
+
+      if (matches.length === 1) {
+        renderSearchSuggestions([]);
+        const student = students.find(entry => entry.id === matches[0]);
+        renderStudent(student);
+        return;
+      }
+
+      if (matches.length > 1) {
+        renderSearchSuggestions(matches);
+        setStatus("여러 후보가 있습니다", "아래 비밀번호 버튼 중 하나를 선택하세요.", matches);
+        return;
+      }
+
+      renderSearchSuggestions([]);
+      setStatus("일치하는 표본이 없습니다", "입력값을 다시 확인해 주세요.");
+    }
+
+    showBtn.addEventListener("click", () => renderStudentByQuery(searchInput.value));
+    searchInput.addEventListener("input", () => renderStudentByQuery(searchInput.value));
+    searchInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        renderStudentByQuery(searchInput.value);
+      }
+    });
+
+    resetBtn.addEventListener("click", () => {
+      searchInput.value = "";
+      reportCard.classList.remove("visible");
+      renderSearchSuggestions([]);
+      setStatus("비밀번호를 입력하세요", "일치하는 표본이 있으면 아래 모바일 리포트가 바로 갱신됩니다.");
+      searchInput.focus();
+    });
+
+    document.querySelectorAll("[data-sample]").forEach(button => {
+      button.addEventListener("click", () => {
+        const sample = button.getAttribute("data-sample");
+        if (!sample) return;
+        searchInput.value = sample;
+        renderStudentByQuery(sample);
+      });
+    });
+
+    dotChartSvg.addEventListener("click", event => {
+      const target = event.target;
+      if (!(target instanceof SVGElement)) return;
+      const studentId = target.getAttribute("data-student");
+      if (!studentId) return;
+      searchInput.value = studentId;
+      renderStudentByQuery(studentId);
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(error => {
+          console.error("Service worker registration failed:", error);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
